@@ -1,0 +1,80 @@
+pkgname=openssh
+pkgver=10.2_p1
+_myver=${pkgver%_*}${pkgver#*_}
+pkgrel=0
+pkgdesc="Port of OpenBSD's free SSH release"
+url="https://www.openssh.com/portable.html"
+arch="all"
+license="SSH-OpenSSH"
+options="suid"
+depends="libcrypto3 zlib-ng qnx-io-sock qnx-security"
+makedepends="openssl-dev>3 zlib-ng-dev qnx-io-sock-dev qnx-security-dev"
+subpackages="$pkgname-doc"
+source="https://ftp.openbsd.org/pub/OpenBSD/OpenSSH/portable/openssh-$_myver.tar.gz
+    fix-qnx-build.patch
+    99-qnx.conf
+    sshd.pam
+"
+builddir="$srcdir"/$pkgname-$_myver
+
+prepare() {
+    default_prepare
+    # remove variable (but useless) first line in config (related to upstream VCS)
+    sed '/^#.*\$.*\$$/d' -i ssh_config
+    sed '/^#.*\$.*\$$/d' -i sshd_config
+
+    # prepend configuration option to include drop-in configuration files for sshd_config
+    printf "# Include drop-in configurations\nInclude /etc/ssh/sshd_config.d/*.conf\n" | cat - sshd_config > sshd_config.tmp
+    mv -v sshd_config.tmp sshd_config
+    # prepend configuration option to include drop-in configuration files for ssh_config
+    printf "# Include drop-in configurations\nInclude /etc/ssh/ssh_config.d/*.conf\n" | cat - ssh_config > ssh_config.tmp
+    mv -v ssh_config.tmp ssh_config
+}
+
+build() {
+    export CFLAGS="$CFLAGS -D_QNX_SOURCE"
+    ./configure \
+        ac_cv_func_rresvport_af=on \
+        --build="$CBUILD" \
+        --host="$CHOST" \
+        --prefix=/usr \
+	--sysconfdir=/etc/ssh \
+        --libexecdir=/usr/lib/ssh \
+        --sbindir=/usr/bin \
+        --with-privsep-path=/var/lib/sshd \
+        --with-default-path="/usr/local/bin:/usr/bin" \
+        --disable-lastlog \
+        --disable-strip \
+        --disable-utmp \
+        --disable-wtmp \
+	--with-mantype=man \
+        --with-pam \
+        --with-ssl-engine
+    make
+}
+
+package() {
+    make DESTDIR="$pkgdir" install
+    install -v -m755 contrib/ssh-copy-id "$pkgdir"/usr/bin
+    install -v -m755 contrib/ssh-copy-id.1 "$pkgdir"/usr/share/man/man1
+
+    # Licenses
+    install -v -m755 -d "$pkgdir"/usr/share/doc/openssh-"$_myver"
+    install -v -m644 INSTALL LICENCE OVERVIEW README* \
+            "$pkgdir"/usr/share/doc/openssh-"$_myver"
+
+    # QNX's default sshd config
+    echo "Include /etc/ssh/sshd_config.d/*.conf" >> "$pkgdir"/etc/ssh/sshd_config
+    install -v -m755 -d "$pkgdir"/etc/ssh/sshd_config.d
+    install -v -m644 ../99-qnx.conf "$pkgdir"/etc/ssh/sshd_config.d
+    # QNX specific PAM settings
+    install -v -m755 -d "$pkgdir"/etc/pam.d
+    install -v -m644 ../sshd.pam "$pkgdir"/etc/pam.d/sshd
+}
+
+sha512sums="
+66f3dd646179e71aaf41c33b6f14a207dc873d71d24f11c130a89dee317ee45398b818e5b94887b5913240964a38630d7bca3e481e0f1eff2e41d9e1cfdbdfc5  openssh-10.2p1.tar.gz
+27095f58ec53facb033bb2e3e4ff475f0fad1e4dbe0fc997df5ba6cfebf386b640b1f549c96b3aa9b32962f1c7dfb7a82432c7aa2d5f09106bc907d6ff2ba8d4  fix-qnx-build.patch
+9db27a1c78a2f423260a75dbe652f126af328b6209736b54ae247c10a3b0e42e5ba3ec605f283eb4dffa1525c9c8cf9ad5cc71e4db5ce6d1f250a78983a99787  99-qnx.conf
+5913b619295a0fe433efd4aceb55c4681233edc9f24b1c80191945cec2ad359e13bfd1bebb509a8d83710fbc0a823af617147cd800dda243239f4a1ea26d2927  sshd.pam
+"
