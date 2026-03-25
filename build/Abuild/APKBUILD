@@ -1,7 +1,7 @@
 pkgname=openssh
 pkgver=10.2_p1
 _myver=${pkgver%_*}${pkgver#*_}
-pkgrel=${pkgrel:-0}
+pkgrel=0
 pkgdesc="Port of OpenBSD's free SSH release"
 url="https://www.openssh.com/portable.html"
 arch="all"
@@ -72,7 +72,6 @@ package() {
     install -v -m644 ../sshd.pam "$pkgdir"/etc/pam.d/sshd
 }
 
-options="$options ${DISABLE_CHECK:+!check}"
 sha512sums="
 66f3dd646179e71aaf41c33b6f14a207dc873d71d24f11c130a89dee317ee45398b818e5b94887b5913240964a38630d7bca3e481e0f1eff2e41d9e1cfdbdfc5  openssh-10.2p1.tar.gz
 27095f58ec53facb033bb2e3e4ff475f0fad1e4dbe0fc997df5ba6cfebf386b640b1f549c96b3aa9b32962f1c7dfb7a82432c7aa2d5f09106bc907d6ff2ba8d4  fix-qnx-build.patch
